@@ -1,0 +1,26 @@
+name: Deploy résumé site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: vars.RESUME_DEPLOY_ROLE_ARN != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.RESUME_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'eu-west-2' }}
+      - name: Upload site
+        run: aws s3 sync site "s3://${{ vars.RESUME_BUCKET }}" --delete
+      - name: Clear CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id "${{ vars.RESUME_DISTRIBUTION_ID }}" --paths '/*'
